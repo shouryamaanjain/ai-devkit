@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   STARTABLE_AGENT_TYPES,
+  isTextFieldFocus,
   nextStartAgentType,
   normalizeStartAgentValues,
   previousStartAgentType,
@@ -54,6 +55,14 @@ describe("StartAgentPane helpers", () => {
       name: "feature-agent",
       cwd: "/tmp/project",
     });
+  });
+
+  it("identifies text-input fields so pane-level char bindings stay guarded", () => {
+    expect(isTextFieldFocus("cwd")).toBe(true);
+    expect(isTextFieldFocus("name")).toBe(true);
+    expect(isTextFieldFocus("type")).toBe(false);
+    expect(isTextFieldFocus("submit")).toBe(false);
+    expect(isTextFieldFocus("cancel")).toBe(false);
   });
 
   it("keeps short error messages unchanged", () => {

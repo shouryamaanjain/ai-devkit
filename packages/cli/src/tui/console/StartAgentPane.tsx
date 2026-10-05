@@ -48,6 +48,10 @@ function previousFocus(focus: Focus): Focus {
   return FOCUS_ORDER[(FOCUS_ORDER.indexOf(focus) - 1 + FOCUS_ORDER.length) % FOCUS_ORDER.length];
 }
 
+export function isTextFieldFocus(focus: Focus): boolean {
+  return focus === "cwd" || focus === "name";
+}
+
 export function normalizeStartAgentValues(values: StartAgentValues): StartAgentValues {
   return {
     type: values.type,
@@ -85,6 +89,11 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
   useInput((input, key) => {
     if (isSubmitting) return;
     if (key.escape || input === "\u001b") {
+      onCancel();
+      return;
+    }
+
+    if (input === "q" && !isTextFieldFocus(focus)) {
       onCancel();
       return;
     }
