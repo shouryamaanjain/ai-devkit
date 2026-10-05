@@ -5,6 +5,7 @@ import {
   normalizeStartAgentValues,
   previousStartAgentType,
   trimStartAgentError,
+  validateStartAgentValues,
 } from "../../../tui/console/StartAgentPane.js";
 
 describe("StartAgentPane helpers", () => {
@@ -54,6 +55,31 @@ describe("StartAgentPane helpers", () => {
       name: "feature-agent",
       cwd: "/tmp/project",
     });
+  });
+
+  it("validates name format before submit", () => {
+    const exists = () => true;
+    expect(
+      validateStartAgentValues({ type: "codex", name: "", cwd: "/tmp" }, exists).name,
+    ).toBeTruthy();
+    expect(
+      validateStartAgentValues({ type: "codex", name: "Bad_Name", cwd: "/tmp" }, exists).name,
+    ).toBeTruthy();
+    expect(
+      validateStartAgentValues({ type: "codex", name: "good-name-1", cwd: "/tmp" }, exists).name,
+    ).toBeUndefined();
+  });
+
+  it("validates cwd emptiness and existence before submit", () => {
+    expect(
+      validateStartAgentValues({ type: "codex", name: "ok", cwd: "" }, () => true).cwd,
+    ).toBeTruthy();
+    expect(
+      validateStartAgentValues({ type: "codex", name: "ok", cwd: "/missing" }, () => false).cwd,
+    ).toContain("does not exist");
+    expect(
+      validateStartAgentValues({ type: "codex", name: "ok", cwd: "/tmp" }, () => true).cwd,
+    ).toBeUndefined();
   });
 
   it("keeps short error messages unchanged", () => {

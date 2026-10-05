@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import React, { useState } from "react";
 import { Box, Text, useInput } from "ink";
 import TextInput from "ink-text-input";
@@ -56,6 +58,35 @@ export function normalizeStartAgentValues(values: StartAgentValues): StartAgentV
   };
 }
 
+const START_NAME_REGEX = /^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$/;
+
+export interface StartAgentFieldErrors {
+  name?: string;
+  cwd?: string;
+}
+
+export function validateStartAgentValues(
+  values: StartAgentValues,
+  cwdExists: (dir: string) => boolean = (dir) => fs.existsSync(dir),
+): StartAgentFieldErrors {
+  const errors: StartAgentFieldErrors = {};
+  if (!values.name) {
+    errors.name = "Name is required.";
+  } else if (!START_NAME_REGEX.test(values.name)) {
+    errors.name = "Lowercase letters, digits and hyphens; start/end alphanumeric, 2-64 chars.";
+  }
+  if (!values.cwd) {
+    errors.cwd = "Working directory is required.";
+  } else if (!cwdExists(path.resolve(values.cwd))) {
+    errors.cwd = `Directory "${values.cwd}" does not exist.`;
+  }
+  return errors;
+}
+
+export function hasStartAgentErrors(errors: StartAgentFieldErrors): boolean {
+  return Object.keys(errors).length > 0;
+}
+
 export function trimStartAgentError(error: string, width: number): string {
   const max = Math.max(20, width - 6);
   return error.length > max ? `${error.slice(0, max - 1)}...` : error;
@@ -76,10 +107,15 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
   const [cwd, setCwd] = useState(initialCwd);
   const [name, setName] = useState(initialName);
   const [focus, setFocus] = useState<Focus>("type");
+  const [fieldErrors, setFieldErrors] = useState<StartAgentFieldErrors>({});
 
   const submit = (): void => {
     if (isSubmitting) return;
-    onSubmit(normalizeStartAgentValues({ type, name, cwd }));
+    const values = normalizeStartAgentValues({ type, name, cwd });
+    const errors = validateStartAgentValues(values);
+    setFieldErrors(errors);
+    if (hasStartAgentErrors(errors)) return;
+    onSubmit(values);
   };
 
   useInput((input, key) => {
@@ -142,22 +178,50 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
         ))}
       </Box>
 
-      <Box marginTop={1} width={innerWidth}>
-        <Text color={focus === "cwd" ? TUI_COLORS.accent : undefined}>Cwd: </Text>
-        {focus === "cwd" ? (
-          <TextInput value={cwd} onChange={setCwd} onSubmit={() => setFocus("name")} />
-        ) : (
-          <Text>{cwd}</Text>
-        )}
+      <Box marginTop={1} width={innerWidth} flexDirection="column">
+        <Box>
+          <Text color={focus === "cwd" ? TUI_COLORS.accent : undefined}>Cwd: </Text>
+          {focus === "cwd" ? (
+            <TextInput
+              value={cwd}
+              onChange={(value) => {
+                setCwd(value);
+                setFieldErrors((prev) => {
+                  const next = { ...prev };
+                  delete next.cwd;
+                  return next;
+                });
+              }}
+              onSubmit={() => setFocus("name")}
+            />
+          ) : (
+            <Text>{cwd}</Text>
+          )}
+        </Box>
+        {fieldErrors.cwd ? <Text color={TUI_COLORS.danger}>{fieldErrors.cwd}</Text> : null}
       </Box>
 
-      <Box marginTop={1} width={innerWidth}>
-        <Text color={focus === "name" ? TUI_COLORS.accent : undefined}>Name: </Text>
-        {focus === "name" ? (
-          <TextInput value={name} onChange={setName} onSubmit={() => setFocus("submit")} />
-        ) : (
-          <Text>{name}</Text>
-        )}
+      <Box marginTop={1} width={innerWidth} flexDirection="column">
+        <Box>
+          <Text color={focus === "name" ? TUI_COLORS.accent : undefined}>Name: </Text>
+          {focus === "name" ? (
+            <TextInput
+              value={name}
+              onChange={(value) => {
+                setName(value);
+                setFieldErrors((prev) => {
+                  const next = { ...prev };
+                  delete next.name;
+                  return next;
+                });
+              }}
+              onSubmit={() => setFocus("submit")}
+            />
+          ) : (
+            <Text>{name}</Text>
+          )}
+        </Box>
+        {fieldErrors.name ? <Text color={TUI_COLORS.danger}>{fieldErrors.name}</Text> : null}
       </Box>
 
       {error ? (
