@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   STARTABLE_AGENT_TYPES,
+  expandHomePath,
+  nextRecentCwd,
   nextStartAgentType,
   normalizeStartAgentValues,
   previousStartAgentType,
@@ -54,6 +56,24 @@ describe("StartAgentPane helpers", () => {
       name: "feature-agent",
       cwd: "/tmp/project",
     });
+  });
+
+  it("expands ~ in the submitted cwd", () => {
+    expect(expandHomePath("~/code", "/home/u")).toBe("/home/u/code");
+    expect(expandHomePath("~", "/home/u")).toBe("/home/u");
+    expect(expandHomePath("/abs/path", "/home/u")).toBe("/abs/path");
+    expect(expandHomePath("~other/x", "/home/u")).toBe("~other/x");
+    expect(
+      normalizeStartAgentValues({ type: "codex", name: "x", cwd: "~/proj" }).cwd,
+    ).toBe(`${process.env.HOME}/proj`);
+  });
+
+  it("cycles recent cwds and skips empty input", () => {
+    const recents = ["/a", "/b", "/c"];
+    expect(nextRecentCwd("/a", recents)).toBe("/b");
+    expect(nextRecentCwd("/elsewhere", recents)).toBe("/a");
+    expect(nextRecentCwd("/c", recents)).toBe("/a");
+    expect(nextRecentCwd("/a", [])).toBeNull();
   });
 
   it("keeps short error messages unchanged", () => {

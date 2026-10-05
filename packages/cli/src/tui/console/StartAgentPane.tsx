@@ -1,3 +1,4 @@
+import os from "os";
 import React, { useState } from "react";
 import { Box, Text, useInput } from "ink";
 import TextInput from "ink-text-input";
@@ -24,6 +25,7 @@ interface StartAgentPaneProps {
   initialType?: StartableAgentType;
   initialName: string;
   initialCwd: string;
+  recentCwds?: string[];
   onSubmit: (values: { type: StartableAgentType; name: string; cwd: string }) => void;
   onCancel: () => void;
   error?: string | null;
@@ -48,11 +50,24 @@ function previousFocus(focus: Focus): Focus {
   return FOCUS_ORDER[(FOCUS_ORDER.indexOf(focus) - 1 + FOCUS_ORDER.length) % FOCUS_ORDER.length];
 }
 
+export function expandHomePath(input: string, home: string = os.homedir()): string {
+  if (input === "~") return home;
+  if (input.startsWith("~/")) return `${home}${input.slice(1)}`;
+  return input;
+}
+
+export function nextRecentCwd(current: string, recents: readonly string[]): string | null {
+  const list = recents.filter(Boolean);
+  if (!list.length) return null;
+  const index = list.indexOf(current);
+  return list[(index + 1 + list.length) % list.length] ?? null;
+}
+
 export function normalizeStartAgentValues(values: StartAgentValues): StartAgentValues {
   return {
     type: values.type,
     name: values.name.trim(),
-    cwd: values.cwd.trim(),
+    cwd: expandHomePath(values.cwd.trim()),
   };
 }
 
@@ -65,6 +80,7 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
   initialType = "codex",
   initialName,
   initialCwd,
+  recentCwds = [],
   onSubmit,
   onCancel,
   error = null,
@@ -98,6 +114,12 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
         setType(nextStartAgentType(type));
         return;
       }
+    }
+
+    if (focus === "cwd" && key.ctrl && input === "r") {
+      const next = nextRecentCwd(cwd, recentCwds);
+      if (next) setCwd(next);
+      return;
     }
 
     if (key.tab || key.downArrow) {
@@ -150,6 +172,12 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
           <Text>{cwd}</Text>
         )}
       </Box>
+
+      {focus === "cwd" && recentCwds.length ? (
+        <Box width={innerWidth}>
+          <Text dimColor>{`recent: ${recentCwds.slice(0, 3).join(" · ")} (ctrl+r)`}</Text>
+        </Box>
+      ) : null}
 
       <Box marginTop={1} width={innerWidth}>
         <Text color={focus === "name" ? TUI_COLORS.accent : undefined}>Name: </Text>
