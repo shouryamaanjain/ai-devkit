@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   STARTABLE_AGENT_TYPES,
+  getStartTypeAvailability,
   nextStartAgentType,
   normalizeStartAgentValues,
   previousStartAgentType,
@@ -54,6 +55,13 @@ describe("StartAgentPane helpers", () => {
       name: "feature-agent",
       cwd: "/tmp/project",
     });
+  });
+
+  it("marks types as available only when their harness binary exists", () => {
+    const availability = getStartTypeAvailability((command) => command === "codex");
+    expect(availability.codex).toBe(true);
+    expect(availability.claude).toBe(false);
+    expect(availability.devin).toBe(false);
   });
 
   it("keeps short error messages unchanged", () => {
