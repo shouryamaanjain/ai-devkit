@@ -17,6 +17,7 @@ interface StartAgentValues {
   type: StartableAgentType;
   name: string;
   cwd: string;
+  mode?: "interactive" | "durable";
 }
 
 function createStartDefaults(): StartDefaults {
@@ -52,7 +53,13 @@ export function useStartAgentPane({
       if (isStartingAgent) return;
       setIsStartingAgent(true);
       setStartPaneError(null);
-      void runAction({ type: "start", agentType: values.type, name: values.name, cwd: values.cwd })
+      void runAction({
+        type: "start",
+        agentType: values.type,
+        name: values.name,
+        cwd: values.cwd,
+        mode: values.mode,
+      })
         .then(async (result) => {
           if (result.error || (result.exitCode !== 0 && result.exitCode !== null)) {
             setStartPaneError(result.error ?? `start exited ${result.exitCode}`);

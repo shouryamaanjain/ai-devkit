@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   STARTABLE_AGENT_TYPES,
+  isModeAllowedForType,
+  nextAgentMode,
   nextStartAgentType,
   normalizeStartAgentValues,
   previousStartAgentType,
@@ -48,12 +50,32 @@ describe("StartAgentPane helpers", () => {
         type: "gemini_cli",
         name: "  feature-agent  ",
         cwd: "  /tmp/project  ",
+        mode: "interactive",
       }),
     ).toEqual({
       type: "gemini_cli",
       name: "feature-agent",
       cwd: "/tmp/project",
+      mode: "interactive",
     });
+  });
+
+  it("restricts durable mode to claude, codex and pi", () => {
+    expect(isModeAllowedForType("durable", "codex")).toBe(true);
+    expect(isModeAllowedForType("durable", "gemini_cli")).toBe(false);
+    expect(isModeAllowedForType("interactive", "gemini_cli")).toBe(true);
+  });
+
+  it("does not cycle to durable mode for unsupported types", () => {
+    expect(nextAgentMode("interactive", "codex")).toBe("durable");
+    expect(nextAgentMode("durable", "codex")).toBe("interactive");
+    expect(nextAgentMode("interactive", "gemini_cli")).toBe("interactive");
+  });
+
+  it("falls back to interactive when durable is normalized for an unsupported type", () => {
+    expect(
+      normalizeStartAgentValues({ type: "kiro", name: "x", cwd: "/tmp", mode: "durable" }).mode,
+    ).toBe("interactive");
   });
 
   it("keeps short error messages unchanged", () => {

@@ -18,13 +18,31 @@ export function previousStartAgentType(type: StartableAgentType): StartableAgent
   ];
 }
 
-type Focus = "type" | "cwd" | "name" | "submit" | "cancel";
+export type AgentMode = "interactive" | "durable";
+
+export const DURABLE_CAPABLE_TYPES: readonly StartableAgentType[] = ["claude", "codex", "pi"];
+
+export function isModeAllowedForType(mode: AgentMode, type: StartableAgentType): boolean {
+  return mode === "interactive" || DURABLE_CAPABLE_TYPES.includes(type);
+}
+
+export function nextAgentMode(mode: AgentMode, type: StartableAgentType): AgentMode {
+  const next: AgentMode = mode === "interactive" ? "durable" : "interactive";
+  return isModeAllowedForType(next, type) ? next : mode;
+}
+
+type Focus = "type" | "mode" | "cwd" | "name" | "submit" | "cancel";
 
 interface StartAgentPaneProps {
   initialType?: StartableAgentType;
   initialName: string;
   initialCwd: string;
-  onSubmit: (values: { type: StartableAgentType; name: string; cwd: string }) => void;
+  onSubmit: (values: {
+    type: StartableAgentType;
+    name: string;
+    cwd: string;
+    mode: AgentMode;
+  }) => void;
   onCancel: () => void;
   error?: string | null;
   isSubmitting?: boolean;
@@ -36,9 +54,10 @@ interface StartAgentValues {
   type: StartableAgentType;
   name: string;
   cwd: string;
+  mode: AgentMode;
 }
 
-const FOCUS_ORDER: Focus[] = ["type", "cwd", "name", "submit", "cancel"];
+const FOCUS_ORDER: Focus[] = ["type", "mode", "cwd", "name", "submit", "cancel"];
 
 function nextFocus(focus: Focus): Focus {
   return FOCUS_ORDER[(FOCUS_ORDER.indexOf(focus) + 1) % FOCUS_ORDER.length];
@@ -53,6 +72,7 @@ export function normalizeStartAgentValues(values: StartAgentValues): StartAgentV
     type: values.type,
     name: values.name.trim(),
     cwd: values.cwd.trim(),
+    mode: isModeAllowedForType(values.mode, values.type) ? values.mode : "interactive",
   };
 }
 
@@ -73,13 +93,19 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
   height,
 }) => {
   const [type, setType] = useState<StartableAgentType>(initialType);
+  const [mode, setMode] = useState<AgentMode>("interactive");
   const [cwd, setCwd] = useState(initialCwd);
   const [name, setName] = useState(initialName);
   const [focus, setFocus] = useState<Focus>("type");
 
+  const changeType = (next: StartableAgentType): void => {
+    setType(next);
+    if (!isModeAllowedForType(mode, next)) setMode("interactive");
+  };
+
   const submit = (): void => {
     if (isSubmitting) return;
-    onSubmit(normalizeStartAgentValues({ type, name, cwd }));
+    onSubmit(normalizeStartAgentValues({ type, name, cwd, mode }));
   };
 
   useInput((input, key) => {
@@ -91,11 +117,18 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
 
     if (focus === "type") {
       if (key.leftArrow || input === "h") {
-        setType(previousStartAgentType(type));
+        changeType(previousStartAgentType(type));
         return;
       }
       if (key.rightArrow || input === "l") {
-        setType(nextStartAgentType(type));
+        changeType(nextStartAgentType(type));
+        return;
+      }
+    }
+
+    if (focus === "mode") {
+      if (key.leftArrow || key.rightArrow || input === "h" || input === "l") {
+        setMode(nextAgentMode(mode, type));
         return;
       }
     }
@@ -140,6 +173,23 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
             {` ${agentType} `}
           </Text>
         ))}
+      </Box>
+
+      <Box marginTop={1} width={innerWidth}>
+        <Text color={focus === "mode" ? TUI_COLORS.accent : undefined}>Mode: </Text>
+        {(["interactive", "durable"] as const).map((candidate) => {
+          const allowed = isModeAllowedForType(candidate, type);
+          return (
+            <Text
+              key={candidate}
+              color={candidate === mode ? TUI_COLORS.accent : undefined}
+              inverse={focus === "mode" && candidate === mode}
+              dimColor={!allowed}
+            >
+              {` ${candidate}${allowed ? "" : " (n/a)"} `}
+            </Text>
+          );
+        })}
       </Box>
 
       <Box marginTop={1} width={innerWidth}>

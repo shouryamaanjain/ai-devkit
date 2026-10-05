@@ -29,6 +29,7 @@ export async function runAction(action: ConsoleAction): Promise<ActionResult> {
           action.name,
           "--cwd",
           action.cwd,
+          ...(action.mode ? ["--mode", action.mode] : []),
         ];
       case "kill":
         return [...baseArgs, "agent", "kill", action.agentName];
