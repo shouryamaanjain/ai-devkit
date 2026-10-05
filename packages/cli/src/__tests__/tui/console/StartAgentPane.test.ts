@@ -53,7 +53,22 @@ describe("StartAgentPane helpers", () => {
       type: "gemini_cli",
       name: "feature-agent",
       cwd: "/tmp/project",
+      args: [],
     });
+  });
+
+  it("splits extra args respecting quotes", () => {
+    expect(
+      normalizeStartAgentValues({
+        type: "codex",
+        name: "x",
+        cwd: "/tmp",
+        args: `--debug --profile "work env" --flag='some value'`,
+      }).args,
+    ).toEqual(["--debug", "--profile", "work env", "--flag=some value"]);
+    expect(
+      normalizeStartAgentValues({ type: "codex", name: "x", cwd: "/tmp" }).args,
+    ).toEqual([]);
   });
 
   it("keeps short error messages unchanged", () => {

@@ -18,13 +18,18 @@ export function previousStartAgentType(type: StartableAgentType): StartableAgent
   ];
 }
 
-type Focus = "type" | "cwd" | "name" | "submit" | "cancel";
+type Focus = "type" | "cwd" | "name" | "args" | "submit" | "cancel";
 
 interface StartAgentPaneProps {
   initialType?: StartableAgentType;
   initialName: string;
   initialCwd: string;
-  onSubmit: (values: { type: StartableAgentType; name: string; cwd: string }) => void;
+  onSubmit: (values: {
+    type: StartableAgentType;
+    name: string;
+    cwd: string;
+    args: string[];
+  }) => void;
   onCancel: () => void;
   error?: string | null;
   isSubmitting?: boolean;
@@ -36,9 +41,10 @@ interface StartAgentValues {
   type: StartableAgentType;
   name: string;
   cwd: string;
+  args?: string;
 }
 
-const FOCUS_ORDER: Focus[] = ["type", "cwd", "name", "submit", "cancel"];
+const FOCUS_ORDER: Focus[] = ["type", "cwd", "name", "args", "submit", "cancel"];
 
 function nextFocus(focus: Focus): Focus {
   return FOCUS_ORDER[(FOCUS_ORDER.indexOf(focus) + 1) % FOCUS_ORDER.length];
@@ -48,11 +54,48 @@ function previousFocus(focus: Focus): Focus {
   return FOCUS_ORDER[(FOCUS_ORDER.indexOf(focus) - 1 + FOCUS_ORDER.length) % FOCUS_ORDER.length];
 }
 
-export function normalizeStartAgentValues(values: StartAgentValues): StartAgentValues {
+export function splitArgString(input: string): string[] {
+  const args: string[] = [];
+  let current = "";
+  let quote: string | null = null;
+  let hasToken = false;
+  for (const ch of input) {
+    if (quote) {
+      if (ch === quote) quote = null;
+      else current += ch;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      hasToken = true;
+      continue;
+    }
+    if (/\s/.test(ch)) {
+      if (hasToken) {
+        args.push(current);
+        current = "";
+        hasToken = false;
+      }
+      continue;
+    }
+    current += ch;
+    hasToken = true;
+  }
+  if (hasToken) args.push(current);
+  return args;
+}
+
+export function normalizeStartAgentValues(values: StartAgentValues): {
+  type: StartableAgentType;
+  name: string;
+  cwd: string;
+  args: string[];
+} {
   return {
     type: values.type,
     name: values.name.trim(),
     cwd: values.cwd.trim(),
+    args: splitArgString(values.args ?? ""),
   };
 }
 
@@ -75,11 +118,12 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
   const [type, setType] = useState<StartableAgentType>(initialType);
   const [cwd, setCwd] = useState(initialCwd);
   const [name, setName] = useState(initialName);
+  const [args, setArgs] = useState("");
   const [focus, setFocus] = useState<Focus>("type");
 
   const submit = (): void => {
     if (isSubmitting) return;
-    onSubmit(normalizeStartAgentValues({ type, name, cwd }));
+    onSubmit(normalizeStartAgentValues({ type, name, cwd, args }));
   };
 
   useInput((input, key) => {
@@ -154,9 +198,23 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
       <Box marginTop={1} width={innerWidth}>
         <Text color={focus === "name" ? TUI_COLORS.accent : undefined}>Name: </Text>
         {focus === "name" ? (
-          <TextInput value={name} onChange={setName} onSubmit={() => setFocus("submit")} />
+          <TextInput value={name} onChange={setName} onSubmit={() => setFocus("args")} />
         ) : (
           <Text>{name}</Text>
+        )}
+      </Box>
+
+      <Box marginTop={1} width={innerWidth}>
+        <Text color={focus === "args" ? TUI_COLORS.accent : undefined}>Args: </Text>
+        {focus === "args" ? (
+          <TextInput
+            value={args}
+            onChange={setArgs}
+            onSubmit={() => setFocus("submit")}
+            placeholder="optional extra CLI args"
+          />
+        ) : (
+          <Text dimColor={!args}>{args || "(none)"}</Text>
         )}
       </Box>
 
