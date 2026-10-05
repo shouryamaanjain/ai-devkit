@@ -18,13 +18,18 @@ export function previousStartAgentType(type: StartableAgentType): StartableAgent
   ];
 }
 
-type Focus = "type" | "cwd" | "name" | "submit" | "cancel";
+type Focus = "type" | "cwd" | "name" | "prompt" | "submit" | "cancel";
 
 interface StartAgentPaneProps {
   initialType?: StartableAgentType;
   initialName: string;
   initialCwd: string;
-  onSubmit: (values: { type: StartableAgentType; name: string; cwd: string }) => void;
+  onSubmit: (values: {
+    type: StartableAgentType;
+    name: string;
+    cwd: string;
+    prompt: string;
+  }) => void;
   onCancel: () => void;
   error?: string | null;
   isSubmitting?: boolean;
@@ -36,9 +41,10 @@ interface StartAgentValues {
   type: StartableAgentType;
   name: string;
   cwd: string;
+  prompt: string;
 }
 
-const FOCUS_ORDER: Focus[] = ["type", "cwd", "name", "submit", "cancel"];
+const FOCUS_ORDER: Focus[] = ["type", "cwd", "name", "prompt", "submit", "cancel"];
 
 function nextFocus(focus: Focus): Focus {
   return FOCUS_ORDER[(FOCUS_ORDER.indexOf(focus) + 1) % FOCUS_ORDER.length];
@@ -53,6 +59,7 @@ export function normalizeStartAgentValues(values: StartAgentValues): StartAgentV
     type: values.type,
     name: values.name.trim(),
     cwd: values.cwd.trim(),
+    prompt: values.prompt?.trim() ?? "",
   };
 }
 
@@ -75,11 +82,12 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
   const [type, setType] = useState<StartableAgentType>(initialType);
   const [cwd, setCwd] = useState(initialCwd);
   const [name, setName] = useState(initialName);
+  const [prompt, setPrompt] = useState("");
   const [focus, setFocus] = useState<Focus>("type");
 
   const submit = (): void => {
     if (isSubmitting) return;
-    onSubmit(normalizeStartAgentValues({ type, name, cwd }));
+    onSubmit(normalizeStartAgentValues({ type, name, cwd, prompt }));
   };
 
   useInput((input, key) => {
@@ -154,9 +162,23 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
       <Box marginTop={1} width={innerWidth}>
         <Text color={focus === "name" ? TUI_COLORS.accent : undefined}>Name: </Text>
         {focus === "name" ? (
-          <TextInput value={name} onChange={setName} onSubmit={() => setFocus("submit")} />
+          <TextInput value={name} onChange={setName} onSubmit={() => setFocus("prompt")} />
         ) : (
           <Text>{name}</Text>
+        )}
+      </Box>
+
+      <Box marginTop={1} width={innerWidth}>
+        <Text color={focus === "prompt" ? TUI_COLORS.accent : undefined}>Task: </Text>
+        {focus === "prompt" ? (
+          <TextInput
+            value={prompt}
+            onChange={setPrompt}
+            onSubmit={() => setFocus("submit")}
+            placeholder="optional first message"
+          />
+        ) : (
+          <Text dimColor={!prompt}>{prompt || "(none)"}</Text>
         )}
       </Box>
 

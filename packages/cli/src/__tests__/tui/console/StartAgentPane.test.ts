@@ -53,7 +53,19 @@ describe("StartAgentPane helpers", () => {
       type: "gemini_cli",
       name: "feature-agent",
       cwd: "/tmp/project",
+      prompt: "",
     });
+  });
+
+  it("trims the optional initial prompt", () => {
+    expect(
+      normalizeStartAgentValues({
+        type: "codex",
+        name: "x",
+        cwd: "/tmp",
+        prompt: "  fix the tests  ",
+      }).prompt,
+    ).toBe("fix the tests");
   });
 
   it("keeps short error messages unchanged", () => {

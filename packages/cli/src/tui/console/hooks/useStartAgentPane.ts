@@ -17,6 +17,7 @@ interface StartAgentValues {
   type: StartableAgentType;
   name: string;
   cwd: string;
+  prompt?: string;
 }
 
 function createStartDefaults(): StartDefaults {
@@ -61,6 +62,20 @@ export function useStartAgentPane({
           setRightPaneMode({ type: "preview" });
           setTransient({ kind: "info", text: `Started ${values.name}` });
           await refresh();
+          const prompt = values.prompt?.trim();
+          if (prompt) {
+            const sendResult = await runAction({
+              type: "send",
+              agentName: values.name,
+              message: prompt,
+            });
+            if (sendResult.error || (sendResult.exitCode !== 0 && sendResult.exitCode !== null)) {
+              setTransient({
+                kind: "error",
+                text: sendResult.error ?? `send exited ${sendResult.exitCode}`,
+              });
+            }
+          }
         })
         .finally(() => {
           setIsStartingAgent(false);
